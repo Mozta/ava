@@ -4,21 +4,29 @@
 /**
  * Convierte texto a voz usando ElevenLabs API directamente
  * @param {string} text - Texto a convertir
- * @param {string} voiceId - ID de la voz (default: voz masculina profesional)
+ * @param {string} voiceId - ID de la voz (usa VITE_ELEVENLABS_VOICE_ID por defecto)
  * @returns {Promise<Blob>} Audio blob
  */
-export const textToSpeech = async (text, voiceId = "pNInz6obpgDQGcFmaJgB") => {
+export const textToSpeech = async (text, voiceId = null) => {
   try {
     const apiKey = import.meta.env.VITE_ELEVENLABS_API_KEY;
+    const defaultVoiceId = import.meta.env.VITE_ELEVENLABS_VOICE_ID;
+
+    // Usar voiceId proporcionado o el del .env
+    const finalVoiceId = voiceId || defaultVoiceId;
 
     if (!apiKey) {
       throw new Error("VITE_ELEVENLABS_API_KEY no está configurado en .env");
     }
 
+    if (!finalVoiceId) {
+      throw new Error("VITE_ELEVENLABS_VOICE_ID no está configurado en .env");
+    }
+
     console.log("Generando audio con ElevenLabs:", text);
 
     const response = await fetch(
-      `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,
+      `https://api.elevenlabs.io/v1/text-to-speech/${finalVoiceId}`,
       {
         method: "POST",
         headers: {
@@ -76,19 +84,11 @@ export const playAudio = (audioBlob) => {
 /**
  * Genera y reproduce audio directamente
  * @param {string} text - Texto a convertir y reproducir
- * @param {string} voiceId - ID de la voz
  * @returns {Promise<void>}
  */
-export const speak = async (text, voiceId) => {
-  const audioBlob = await textToSpeech(text, voiceId);
+export const speak = async (text) => {
+  const audioBlob = await textToSpeech(text);
   await playAudio(audioBlob);
-};
-
-// Voces predefinidas en español
-export const SPANISH_VOICES = {
-  MALE: "pNInz6obpgDQGcFmaJgB", // Adam - voz masculina
-  FEMALE: "EXAVITQu4vr4xnSDxMaL", // Bella - voz femenina
-  MALE_YOUNG: "yoZ06aMxZJJ28mfd3POQ", // Sam - voz joven masculina
 };
 
 // Mensajes predefinidos

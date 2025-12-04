@@ -19,7 +19,7 @@ export function useVoice() {
 
   // Generar y reproducir texto
   const speak = useCallback(
-    async (text, voiceId = "pNInz6obpgDQGcFmaJgB") => {
+    async (text) => {
       try {
         // Detener cualquier audio previo
         stopSpeaking();
@@ -29,8 +29,8 @@ export function useVoice() {
 
         console.log("Generando voz para:", text);
 
-        // Generar audio con ElevenLabs
-        const audioBlob = await textToSpeech(text, voiceId);
+        // Generar audio con ElevenLabs usando la voz del .env
+        const audioBlob = await textToSpeech(text);
 
         setIsGenerating(false);
         setIsSpeaking(true);

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import "./App.css";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls, Environment } from "@react-three/drei";
@@ -6,13 +6,13 @@ import Robot3D from "./components/Robot3D";
 import { useRobotState } from "./hooks/useRobotState";
 import { useMediaPipe } from "./hooks/useMediaPipe";
 import { useVoice } from "./hooks/useVoice";
+import { useElevenLabsConversation } from "./hooks/useElevenLabsConversation";
 import InitScreen from "./components/InitScreen";
 import LoadingSequence from "./components/LoadingSequence";
 import SystemStats from "./components/SystemStats";
 import CameraPreview from "./components/CameraPreview";
 import ControlPanel from "./components/ControlPanel";
-import VoiceInterface from "./components/VoiceInterface";
-import { PREDEFINED_MESSAGES } from "./utils/elevenLabsClient";
+import { PREDEFINED_MESSAGES, playAudio } from "./utils/elevenLabsClient";
 
 function App() {
   const { robotState, changeState } = useRobotState();
@@ -26,6 +26,17 @@ function App() {
     videoElement,
     cameraActive
   );
+
+  // Hook del agente conversacional de ElevenLabs
+  const {
+    isConnected: agentConnected,
+    isAgentSpeaking,
+    conversationId,
+    mode,
+    error: agentError,
+    startConversation,
+    endConversation,
+  } = useElevenLabsConversation();
 
   // Hook de voz para Text-to-Speech
   const {
@@ -64,14 +75,25 @@ function App() {
     }
   }, [faceDetected, robotState, hasGreeted, isSpeaking, speak, changeState]);
 
-  // Sincronizar estado del robot con el estado de voz
+  // Sincronizar estado del robot con el estado de voz y agente
   useEffect(() => {
-    if (isSpeaking && robotState !== "greeting") {
-      changeState("talking");
-    } else if (!isSpeaking && robotState === "talking") {
+    if (isSpeaking || isAgentSpeaking) {
+      if (robotState !== "greeting") {
+        changeState("talking");
+      }
+    } else if (!isSpeaking && !isAgentSpeaking && robotState === "talking") {
       changeState("idle");
     }
-  }, [isSpeaking, robotState, changeState]);
+  }, [isSpeaking, isAgentSpeaking, robotState, changeState]);
+
+  // Sincronizar estado del robot con conversación
+  useEffect(() => {
+    if (agentConnected) {
+      changeState("listening");
+    } else if (!agentConnected && robotState === "listening") {
+      changeState("idle");
+    }
+  }, [agentConnected, robotState, changeState]);
 
   const handleInitialize = () => {
     setAppState("loading");
@@ -95,6 +117,28 @@ function App() {
       await speak(text, voiceId);
     } catch (err) {
       console.error("Error hablando:", err);
+      changeState("idle");
+    }
+  };
+
+  // Manejar toggle de conversación (iniciar/colgar)
+  const handleToggleConversation = async () => {
+    console.log("🔘 Botón ESCUCHAR presionado");
+    console.log("📊 Estado actual - agentConnected:", agentConnected);
+
+    try {
+      if (agentConnected) {
+        // Colgar la conversación
+        console.log("📴 Colgando conversación...");
+        endConversation();
+      } else {
+        // Iniciar conversación
+        console.log("📞 Iniciando conversación...");
+        await startConversation();
+        console.log("✅ startConversation completado");
+      }
+    } catch (err) {
+      console.error("❌ Error en conversación:", err);
       changeState("idle");
     }
   };
@@ -161,51 +205,108 @@ function App() {
       />
 
       {/* Control Panel - Bottom Center */}
-      <ControlPanel robotState={robotState} onStateChange={changeState} />
-
-      {/* Voice Interface - Bottom Left */}
-      <VoiceInterface
-        onSpeak={handleSpeak}
-        isSpeaking={isSpeaking}
-        isGenerating={isGenerating}
-        error={voiceError}
+      <ControlPanel
+        robotState={robotState}
+        onStateChange={changeState}
+        onToggleConversation={handleToggleConversation}
+        onGreeting={async () => {
+          changeState("greeting");
+          try {
+            await speak(PREDEFINED_MESSAGES.greeting_detected);
+          } catch (err) {
+            console.error("Error en saludo:", err);
+          }
+          changeState("idle");
+        }}
+        isInCall={agentConnected}
+        isSpeaking={isSpeaking || isAgentSpeaking}
       />
 
-      {/* MediaPipe Status Indicator */}
-      {cameraActive && (
-        <div className="absolute top-4 left-4 z-20">
-          <div
-            className="bg-slate-900/90 backdrop-blur-sm border-2 border-cyan-500/50 rounded-lg p-3"
-            style={{ boxShadow: "0 0 20px rgba(34, 211, 238, 0.3)" }}
-          >
-            <div className="text-xs font-mono text-cyan-300 mb-2">
+      {/* System Status Panel - Top Left */}
+      <div className="absolute top-4 left-4 z-20">
+        <div
+          className="bg-slate-900/90 backdrop-blur-sm border-2 border-cyan-500/50 rounded-lg p-4"
+          style={{ boxShadow: "0 0 20px rgba(34, 211, 238, 0.3)" }}
+        >
+          {/* Header */}
+          <div className="text-center mb-3 pb-2 border-b border-cyan-500/50">
+            <div className="text-cyan-400 font-bold text-xs tracking-wider">
+              SYSTEM STATUS
+            </div>
+          </div>
+
+          <div className="text-xs font-mono text-cyan-300 space-y-2">
+            {/* Conversation Status */}
+            <div>
               <div className="flex items-center gap-2 mb-1">
                 <div
                   className={`w-2 h-2 rounded-full ${
-                    isInitialized
-                      ? "bg-green-400 animate-pulse"
-                      : "bg-yellow-400 animate-pulse"
+                    agentConnected ? "bg-green-400 animate-pulse" : "bg-red-400"
                   }`}
                 ></div>
-                <span>MediaPipe: {isInitialized ? "READY" : "LOADING..."}</span>
+                <span className="font-semibold">
+                  Conversación: {agentConnected ? "ACTIVA" : "INACTIVA"}
+                </span>
               </div>
-              <div className="flex items-center gap-2">
-                <div
-                  className={`w-2 h-2 rounded-full ${
-                    faceDetected ? "bg-green-400 animate-pulse" : "bg-red-400"
-                  }`}
-                ></div>
-                <span>Face: {faceDetected ? "DETECTED" : "SEARCHING..."}</span>
-              </div>
+              {conversationId && (
+                <div className="text-xs text-cyan-400/70 ml-4">
+                  ID: {conversationId.slice(0, 12)}...
+                </div>
+              )}
+              {agentConnected && (
+                <div className="text-xs text-green-400 ml-4">
+                  🎤 Micrófono activo
+                </div>
+              )}
+              {isAgentSpeaking && (
+                <div className="text-xs text-blue-400 animate-pulse ml-4">
+                  🔊 Agente hablando...
+                </div>
+              )}
+              {mode && mode !== "idle" && (
+                <div className="text-xs text-yellow-400 ml-4">
+                  Modo: {mode === "listening" ? "Escuchando" : "Hablando"}
+                </div>
+              )}
             </div>
-            {error && (
-              <div className="text-xs font-mono text-red-400 mt-2">
-                Error: {error}
+
+            {/* MediaPipe Status */}
+            {cameraActive && (
+              <div className="pt-2 border-t border-cyan-500/30">
+                <div className="flex items-center gap-2 mb-1">
+                  <div
+                    className={`w-2 h-2 rounded-full ${
+                      isInitialized
+                        ? "bg-green-400 animate-pulse"
+                        : "bg-yellow-400 animate-pulse"
+                    }`}
+                  ></div>
+                  <span className="font-semibold">
+                    MediaPipe: {isInitialized ? "READY" : "LOADING..."}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 ml-4">
+                  <div
+                    className={`w-2 h-2 rounded-full ${
+                      faceDetected ? "bg-green-400 animate-pulse" : "bg-red-400"
+                    }`}
+                  ></div>
+                  <span>
+                    Rostro: {faceDetected ? "DETECTADO" : "BUSCANDO..."}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* Error Display */}
+            {(error || agentError) && (
+              <div className="text-xs font-mono text-red-400 mt-2 pt-2 border-t border-red-500/30">
+                ⚠️ {error || agentError}
               </div>
             )}
           </div>
         </div>
-      )}
+      </div>
 
       {/* Canvas 3D */}
       <div className="w-full h-screen">

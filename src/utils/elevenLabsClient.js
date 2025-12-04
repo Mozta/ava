@@ -1,52 +1,47 @@
-import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
-
-// Cliente de ElevenLabs
-let elevenLabsClient = null;
-
-const initializeElevenLabs = () => {
-  if (!elevenLabsClient) {
-    const apiKey = import.meta.env.VITE_ELEVENLABS_API_KEY;
-    if (!apiKey) {
-      throw new Error("VITE_ELEVENLABS_API_KEY no está configurado en .env");
-    }
-    elevenLabsClient = new ElevenLabsClient({ apiKey });
-  }
-  return elevenLabsClient;
-};
+// Cliente de ElevenLabs - Para Text-to-Speech usamos fetch directo
+// El paquete @elevenlabs/client está enfocado en conversaciones
 
 /**
- * Convierte texto a voz usando ElevenLabs
+ * Convierte texto a voz usando ElevenLabs API directamente
  * @param {string} text - Texto a convertir
  * @param {string} voiceId - ID de la voz (default: voz masculina profesional)
  * @returns {Promise<Blob>} Audio blob
  */
 export const textToSpeech = async (text, voiceId = "pNInz6obpgDQGcFmaJgB") => {
   try {
-    const client = initializeElevenLabs();
+    const apiKey = import.meta.env.VITE_ELEVENLABS_API_KEY;
+
+    if (!apiKey) {
+      throw new Error("VITE_ELEVENLABS_API_KEY no está configurado en .env");
+    }
 
     console.log("Generando audio con ElevenLabs:", text);
 
-    // Usar la API correcta de text-to-speech
-    const audio = await client.textToSpeech.convert(voiceId, {
-      text: text,
-      model_id: "eleven_turbo_v2_5",
-      voice_settings: {
-        stability: 0.5,
-        similarity_boost: 0.75,
-        style: 0.5,
-        use_speaker_boost: true,
-      },
-    });
+    const response = await fetch(
+      `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "xi-api-key": apiKey,
+        },
+        body: JSON.stringify({
+          text: text,
+          model_id: "eleven_turbo_v2_5",
+          voice_settings: {
+            stability: 0.5,
+            similarity_boost: 0.75,
+          },
+        }),
+      }
+    );
 
-    // Convertir el stream a blob
-    const chunks = [];
-    for await (const chunk of audio) {
-      chunks.push(chunk);
+    if (!response.ok) {
+      throw new Error(`Error en ElevenLabs API: ${response.status}`);
     }
 
-    const audioBlob = new Blob(chunks, { type: "audio/mpeg" });
+    const audioBlob = await response.blob();
     console.log("Audio generado exitosamente");
-
     return audioBlob;
   } catch (error) {
     console.error("Error en textToSpeech:", error);
@@ -87,21 +82,6 @@ export const playAudio = (audioBlob) => {
 export const speak = async (text, voiceId) => {
   const audioBlob = await textToSpeech(text, voiceId);
   await playAudio(audioBlob);
-};
-
-/**
- * Obtiene lista de voces disponibles
- * @returns {Promise<Array>}
- */
-export const getVoices = async () => {
-  try {
-    const client = initializeElevenLabs();
-    const voices = await client.voices.getAll();
-    return voices.voices;
-  } catch (error) {
-    console.error("Error obteniendo voces:", error);
-    throw error;
-  }
 };
 
 // Voces predefinidas en español

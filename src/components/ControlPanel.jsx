@@ -1,10 +1,68 @@
-function ControlPanel({ robotState, onStateChange }) {
+function ControlPanel({
+  robotState,
+  onStateChange,
+  onToggleConversation,
+  onGreeting,
+  isInCall = false,
+  isSpeaking = false,
+}) {
+  const handleGreeting = () => {
+    if (onGreeting) {
+      onGreeting();
+    } else {
+      onStateChange("greeting");
+    }
+  };
+
+  const handleToggleCall = () => {
+    if (onToggleConversation) {
+      onToggleConversation();
+    }
+  };
+
   const buttons = [
-    { id: "idle", label: "IDLE", color: "cyan", icon: "◉" },
-    { id: "greeting", label: "SALUDO", color: "green", icon: "👋" },
-    { id: "listening", label: "ESCUCHAR", color: "yellow", icon: "🎤" },
-    { id: "thinking", label: "PROCESAR", color: "purple", icon: "⚡" },
-    { id: "talking", label: "HABLAR", color: "blue", icon: "💬" },
+    {
+      id: "idle",
+      label: "IDLE",
+      color: "cyan",
+      icon: "◉",
+      onClick: () => onStateChange("idle"),
+      disabled: isInCall,
+    },
+    {
+      id: "greeting",
+      label: "SALUDO",
+      color: "green",
+      icon: "👋",
+      onClick: handleGreeting,
+      disabled: isSpeaking || isInCall,
+    },
+    {
+      id: "listening",
+      label: isInCall ? "DETENER" : "ESCUCHAR",
+      color: isInCall ? "red" : "yellow",
+      icon: isInCall ? "📞" : "🎤",
+      onClick: handleToggleCall,
+      disabled: false,
+      active: isInCall,
+    },
+    {
+      id: "thinking",
+      label: "PROCESAR",
+      color: "purple",
+      icon: "⚡",
+      onClick: () => onStateChange("thinking"),
+      disabled: true,
+    },
+    {
+      id: "talking",
+      label: "HABLAR",
+      color: "blue",
+      icon: "💬",
+      onClick: () => onStateChange("talking"),
+      disabled: true,
+      active: isSpeaking,
+    },
   ];
 
   const colorClasses = {
@@ -13,6 +71,7 @@ function ControlPanel({ robotState, onStateChange }) {
       "border-green-500 text-green-400 hover:bg-green-500/20 hover:shadow-green",
     yellow:
       "border-yellow-500 text-yellow-400 hover:bg-yellow-500/20 hover:shadow-yellow",
+    red: "border-red-500 text-red-400 hover:bg-red-500/20 hover:shadow-red",
     purple:
       "border-purple-500 text-purple-400 hover:bg-purple-500/20 hover:shadow-purple",
     blue: "border-blue-500 text-blue-400 hover:bg-blue-500/20 hover:shadow-blue",
@@ -36,11 +95,17 @@ function ControlPanel({ robotState, onStateChange }) {
         {/* Buttons */}
         <div className="flex gap-3">
           {buttons.map((button) => {
-            const isActive = robotState === button.id;
+            const isActive =
+              button.active !== undefined
+                ? button.active
+                : robotState === button.id;
+            const isDisabled = button.disabled || false;
+
             return (
               <button
                 key={button.id}
-                onClick={() => onStateChange(button.id)}
+                onClick={button.onClick}
+                disabled={isDisabled}
                 className={`
                   relative group px-6 py-3 border-2 rounded-lg font-mono text-sm font-bold
                   transition-all duration-300 min-w-[120px]
@@ -50,9 +115,10 @@ function ControlPanel({ robotState, onStateChange }) {
                       ? `bg-${button.color}-500/30 shadow-lg`
                       : "bg-slate-800/50"
                   }
+                  ${isDisabled ? "opacity-50 cursor-not-allowed" : ""}
                 `}
                 style={
-                  isActive
+                  isActive && !isDisabled
                     ? {
                         boxShadow: `0 0 20px rgba(34, 211, 238, 0.6), inset 0 0 20px rgba(34, 211, 238, 0.2)`,
                       }
@@ -60,7 +126,7 @@ function ControlPanel({ robotState, onStateChange }) {
                 }
               >
                 {/* Active indicator */}
-                {isActive && (
+                {isActive && !isDisabled && (
                   <div
                     className="absolute -top-1 -right-1 w-3 h-3 bg-cyan-400 rounded-full animate-pulse"
                     style={{ boxShadow: "0 0 10px rgba(34, 211, 238, 0.8)" }}

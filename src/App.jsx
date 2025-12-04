@@ -241,6 +241,8 @@ function App() {
         isSpeaking={isSpeaking || isAgentSpeaking}
         userName={userName}
         onToggleUserName={toggleUserName}
+        cameraActive={cameraActive}
+        onToggleCamera={toggleCamera}
       />
 
       {/* System Status Panel - Top Left */}

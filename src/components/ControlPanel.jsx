@@ -7,6 +7,8 @@ function ControlPanel({
   isSpeaking = false,
   userName = "",
   onToggleUserName,
+  cameraActive = false,
+  onToggleCamera,
 }) {
   const handleGreeting = () => {
     if (onGreeting) {
@@ -32,6 +34,15 @@ function ControlPanel({
       disabled: isInCall,
     },
     {
+      id: "camera",
+      label: cameraActive ? "CÁMARA ON" : "CÁMARA OFF",
+      color: cameraActive ? "green" : "purple",
+      icon: cameraActive ? "📹" : "📷",
+      onClick: onToggleCamera,
+      disabled: false,
+      active: cameraActive,
+    },
+    {
       id: "greeting",
       label: "SALUDO",
       color: "green",
@@ -47,14 +58,6 @@ function ControlPanel({
       onClick: handleToggleCall,
       disabled: false,
       active: isInCall,
-    },
-    {
-      id: "thinking",
-      label: "PROCESAR",
-      color: "purple",
-      icon: "⚡",
-      onClick: () => onStateChange("thinking"),
-      disabled: true,
     },
     {
       id: "talking",

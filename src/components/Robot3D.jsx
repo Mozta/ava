@@ -6,9 +6,11 @@ function Robot3D({
   robotState = "idle",
   facePosition = null,
   faceDetected = false,
+  isSpeaking = false,
 }) {
   const groupRef = useRef();
   const headRef = useRef();
+  const mouthRef = useRef();
 
   // Animación idle: movimiento sutil de flotación
   useFrame((state) => {
@@ -50,6 +52,21 @@ function Robot3D({
       console.log("¡Rostro detectado! El robot puede saludar.");
     }
   }, [faceDetected, robotState]);
+
+  // Animación de boca cuando habla
+  useFrame((state) => {
+    if (mouthRef.current) {
+      if (isSpeaking || robotState === "talking") {
+        // Movimiento de boca rápido cuando habla
+        const mouthMovement =
+          Math.abs(Math.sin(state.clock.elapsedTime * 20)) * 0.15;
+        mouthRef.current.scale.y = 1 + mouthMovement;
+      } else {
+        // Resetear escala de boca
+        mouthRef.current.scale.y += (1 - mouthRef.current.scale.y) * 0.1;
+      }
+    }
+  });
 
   return (
     <group ref={groupRef} position={[0, 0, 0]}>
@@ -106,7 +123,7 @@ function Robot3D({
         </mesh>
 
         {/* Boca */}
-        <mesh position={[0, -0.2, 0.41]} castShadow>
+        <mesh ref={mouthRef} position={[0, -0.2, 0.41]} castShadow>
           <boxGeometry args={[0.3, 0.08, 0.05]} />
           <meshStandardMaterial color="#1e293b" />
         </mesh>

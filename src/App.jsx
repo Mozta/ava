@@ -5,17 +5,21 @@ import { OrbitControls, Environment } from "@react-three/drei";
 import Robot3D from "./components/Robot3D";
 import { useRobotState } from "./hooks/useRobotState";
 import { useMediaPipe } from "./hooks/useMediaPipe";
+import { useVoice } from "./hooks/useVoice";
 import InitScreen from "./components/InitScreen";
 import LoadingSequence from "./components/LoadingSequence";
 import SystemStats from "./components/SystemStats";
 import CameraPreview from "./components/CameraPreview";
 import ControlPanel from "./components/ControlPanel";
+import VoiceInterface from "./components/VoiceInterface";
+import { PREDEFINED_MESSAGES } from "./utils/elevenLabsClient";
 
 function App() {
   const { robotState, changeState } = useRobotState();
   const [appState, setAppState] = useState("init"); // 'init', 'loading', 'ready'
   const [cameraActive, setCameraActive] = useState(false);
   const [videoElement, setVideoElement] = useState(null);
+  const [hasGreeted, setHasGreeted] = useState(false);
 
   // Hook de MediaPipe para detección facial
   const { faceDetected, facePosition, isInitialized, error } = useMediaPipe(
@@ -23,20 +27,51 @@ function App() {
     cameraActive
   );
 
+  // Hook de voz para Text-to-Speech
+  const {
+    speak,
+    stopSpeaking,
+    isSpeaking,
+    isGenerating,
+    error: voiceError,
+  } = useVoice();
+
   // Saludo automático cuando se detecta un rostro por primera vez
   useEffect(() => {
-    if (faceDetected && robotState === "idle") {
+    if (faceDetected && robotState === "idle" && !hasGreeted && !isSpeaking) {
       console.log("¡Rostro detectado! Robot saludando...");
+      setHasGreeted(true);
+
       changeState("greeting");
 
-      // Volver a idle después de 3 segundos
-      const timer = setTimeout(() => {
-        changeState("idle");
-      }, 3000);
-
-      return () => clearTimeout(timer);
+      // Hablar el saludo
+      speak(PREDEFINED_MESSAGES.greeting_detected)
+        .then(() => {
+          changeState("idle");
+        })
+        .catch((err) => {
+          console.error("Error en saludo:", err);
+          changeState("idle");
+        });
     }
-  }, [faceDetected]);
+
+    // Reset hasGreeted cuando no se detecta rostro por un tiempo
+    if (!faceDetected) {
+      const resetTimer = setTimeout(() => {
+        setHasGreeted(false);
+      }, 5000);
+      return () => clearTimeout(resetTimer);
+    }
+  }, [faceDetected, robotState, hasGreeted, isSpeaking, speak, changeState]);
+
+  // Sincronizar estado del robot con el estado de voz
+  useEffect(() => {
+    if (isSpeaking && robotState !== "greeting") {
+      changeState("talking");
+    } else if (!isSpeaking && robotState === "talking") {
+      changeState("idle");
+    }
+  }, [isSpeaking, robotState, changeState]);
 
   const handleInitialize = () => {
     setAppState("loading");
@@ -52,6 +87,16 @@ function App() {
 
   const handleVideoReady = (video) => {
     setVideoElement(video);
+  };
+
+  const handleSpeak = async (text, voiceId) => {
+    try {
+      changeState("thinking");
+      await speak(text, voiceId);
+    } catch (err) {
+      console.error("Error hablando:", err);
+      changeState("idle");
+    }
   };
 
   // Render init screen
@@ -104,6 +149,7 @@ function App() {
         robotState={robotState}
         cameraActive={cameraActive}
         faceDetected={faceDetected}
+        isSpeaking={isSpeaking}
       />
 
       {/* Camera Preview - Bottom Right */}
@@ -116,6 +162,14 @@ function App() {
 
       {/* Control Panel - Bottom Center */}
       <ControlPanel robotState={robotState} onStateChange={changeState} />
+
+      {/* Voice Interface - Bottom Left */}
+      <VoiceInterface
+        onSpeak={handleSpeak}
+        isSpeaking={isSpeaking}
+        isGenerating={isGenerating}
+        error={voiceError}
+      />
 
       {/* MediaPipe Status Indicator */}
       {cameraActive && (
@@ -172,6 +226,7 @@ function App() {
             robotState={robotState}
             facePosition={facePosition}
             faceDetected={faceDetected}
+            isSpeaking={isSpeaking}
           />
 
           {/* Suelo con efecto cyberpunk */}

@@ -4,6 +4,7 @@ function SystemStats({
   robotState,
   cameraActive = false,
   faceDetected = false,
+  isSpeaking = false,
 }) {
   const [stats, setStats] = useState({
     cpu: 0,
@@ -81,7 +82,7 @@ function SystemStats({
             active={robotState !== "idle"}
             label="ENLACE NEURONAL"
           />
-          <StatusIndicator active={true} label="AUDIO SYSTEM" />
+          <StatusIndicator active={isSpeaking} label="VOICE SYSTEM" />
           <StatusIndicator active={stats.neuralLink > 80} label="AI CORE" />
         </div>
 

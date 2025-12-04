@@ -5,6 +5,8 @@ function ControlPanel({
   onGreeting,
   isInCall = false,
   isSpeaking = false,
+  userName = "",
+  onToggleUserName,
 }) {
   const handleGreeting = () => {
     if (onGreeting) {
@@ -87,7 +89,16 @@ function ControlPanel({
         <div className="text-center mb-4 border-b border-cyan-500/50 pb-3">
           <div className="text-cyan-400 font-bold text-sm tracking-wider flex items-center justify-center gap-2">
             <div className="w-2 h-2 bg-cyan-400 rounded-full animate-pulse"></div>
-            CONTROL PANEL
+            CONTROL
+            <button
+              onClick={onToggleUserName}
+              className="hover:text-cyan-300 transition-colors cursor-pointer"
+              title={
+                userName ? "Usuario activado" : "Click para activar usuario"
+              }
+            >
+              PANEL
+            </button>
             <div className="w-2 h-2 bg-cyan-400 rounded-full animate-pulse"></div>
           </div>
         </div>

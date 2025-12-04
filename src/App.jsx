@@ -20,6 +20,7 @@ function App() {
   const [cameraActive, setCameraActive] = useState(false);
   const [videoElement, setVideoElement] = useState(null);
   const [hasGreeted, setHasGreeted] = useState(false);
+  const [userName, setUserName] = useState("");
 
   // Hook de MediaPipe para detección facial
   const { faceDetected, facePosition, isInitialized, error } = useMediaPipe(
@@ -56,7 +57,11 @@ function App() {
       changeState("greeting");
 
       // Hablar el saludo
-      speak(PREDEFINED_MESSAGES.greeting_detected)
+      const greetingMessage = userName
+        ? `¡Hola ${userName}! Es un placer verte de nuevo.`
+        : PREDEFINED_MESSAGES.greeting_detected;
+
+      speak(greetingMessage)
         .then(() => {
           changeState("idle");
         })
@@ -118,6 +123,17 @@ function App() {
     } catch (err) {
       console.error("Error hablando:", err);
       changeState("idle");
+    }
+  };
+
+  // Toggle nombre de usuario
+  const toggleUserName = () => {
+    if (userName === "") {
+      setUserName("Dr. Alejandro Guevara Sanginés");
+      console.log("👤 Usuario activado: Dr. Alejandro Guevara Sanginés");
+    } else {
+      setUserName("");
+      console.log("👤 Usuario desactivado");
     }
   };
 
@@ -212,7 +228,10 @@ function App() {
         onGreeting={async () => {
           changeState("greeting");
           try {
-            await speak(PREDEFINED_MESSAGES.greeting_detected);
+            const greetingMessage = userName
+              ? `¡Hola ${userName}! Es un placer verte de nuevo.`
+              : PREDEFINED_MESSAGES.greeting_detected;
+            await speak(greetingMessage);
           } catch (err) {
             console.error("Error en saludo:", err);
           }
@@ -220,6 +239,8 @@ function App() {
         }}
         isInCall={agentConnected}
         isSpeaking={isSpeaking || isAgentSpeaking}
+        userName={userName}
+        onToggleUserName={toggleUserName}
       />
 
       {/* System Status Panel - Top Left */}

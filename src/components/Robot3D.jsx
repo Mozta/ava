@@ -1,8 +1,12 @@
-import { useRef } from "react";
+import { useRef, useEffect } from "react";
 import { useFrame } from "@react-three/fiber";
 import { useSpring, animated } from "@react-spring/three";
 
-function Robot3D({ robotState = "idle" }) {
+function Robot3D({
+  robotState = "idle",
+  facePosition = null,
+  faceDetected = false,
+}) {
   const groupRef = useRef();
   const headRef = useRef();
 
@@ -16,13 +20,36 @@ function Robot3D({ robotState = "idle" }) {
     }
   });
 
-  // Animación de cabeza: parpadeo sutil
+  // Animación de cabeza: seguir al usuario o parpadeo sutil
   useFrame((state) => {
     if (headRef.current) {
-      const blink = Math.sin(state.clock.elapsedTime * 2) * 0.02;
-      headRef.current.rotation.x = blink;
+      if (faceDetected && facePosition) {
+        // Seguir la posición del rostro detectado suavemente
+        const targetRotationY = facePosition.x * 0.5; // Rotación horizontal
+        const targetRotationX = facePosition.y * 0.3; // Rotación vertical
+
+        // Interpolación suave (lerp)
+        headRef.current.rotation.y +=
+          (targetRotationY - headRef.current.rotation.y) * 0.1;
+        headRef.current.rotation.x +=
+          (targetRotationX - headRef.current.rotation.x) * 0.1;
+      } else {
+        // Parpadeo sutil cuando no hay rostro detectado
+        const blink = Math.sin(state.clock.elapsedTime * 2) * 0.02;
+        headRef.current.rotation.x +=
+          (blink - headRef.current.rotation.x) * 0.1;
+        headRef.current.rotation.y += (0 - headRef.current.rotation.y) * 0.1;
+      }
     }
   });
+
+  // Efecto de saludo cuando se detecta un rostro por primera vez
+  useEffect(() => {
+    if (faceDetected && robotState === "idle") {
+      // Aquí podríamos cambiar el estado a 'greeting' automáticamente
+      console.log("¡Rostro detectado! El robot puede saludar.");
+    }
+  }, [faceDetected, robotState]);
 
   return (
     <group ref={groupRef} position={[0, 0, 0]}>

@@ -32,31 +32,38 @@ function Robot3D({
   useFrame((state) => {
     if (headRef.current) {
       const t = state.clock.elapsedTime;
-      
+
       if (isSpeaking || robotState === "talking") {
         // Movimiento más expresivo al hablar
         const nod = Math.sin(t * 4) * 0.08; // Asentimiento
         const tilt = Math.sin(t * 3) * 0.05; // Inclinación lateral
-        
+
         if (faceDetected && facePosition) {
           const targetRotationY = facePosition.x * 0.5 + tilt;
           const targetRotationX = facePosition.y * 0.3 + nod;
-          headRef.current.rotation.y += (targetRotationY - headRef.current.rotation.y) * 0.15;
-          headRef.current.rotation.x += (targetRotationX - headRef.current.rotation.x) * 0.15;
+          headRef.current.rotation.y +=
+            (targetRotationY - headRef.current.rotation.y) * 0.15;
+          headRef.current.rotation.x +=
+            (targetRotationX - headRef.current.rotation.x) * 0.15;
         } else {
-          headRef.current.rotation.x += (nod - headRef.current.rotation.x) * 0.15;
-          headRef.current.rotation.z += (tilt - headRef.current.rotation.z) * 0.15;
+          headRef.current.rotation.x +=
+            (nod - headRef.current.rotation.x) * 0.15;
+          headRef.current.rotation.z +=
+            (tilt - headRef.current.rotation.z) * 0.15;
         }
       } else if (faceDetected && facePosition) {
         // Seguir la posición del rostro detectado suavemente
         const targetRotationY = facePosition.x * 0.5;
         const targetRotationX = facePosition.y * 0.3;
-        headRef.current.rotation.y += (targetRotationY - headRef.current.rotation.y) * 0.1;
-        headRef.current.rotation.x += (targetRotationX - headRef.current.rotation.x) * 0.1;
+        headRef.current.rotation.y +=
+          (targetRotationY - headRef.current.rotation.y) * 0.1;
+        headRef.current.rotation.x +=
+          (targetRotationX - headRef.current.rotation.x) * 0.1;
       } else {
         // Movimiento sutil cuando no hay rostro detectado
         const blink = Math.sin(t * 2) * 0.02;
-        headRef.current.rotation.x += (blink - headRef.current.rotation.x) * 0.1;
+        headRef.current.rotation.x +=
+          (blink - headRef.current.rotation.x) * 0.1;
         headRef.current.rotation.y += (0 - headRef.current.rotation.y) * 0.1;
         headRef.current.rotation.z += (0 - headRef.current.rotation.z) * 0.1;
       }
@@ -77,7 +84,8 @@ function Robot3D({
       const t = state.clock.elapsedTime;
       if (isSpeaking || robotState === "talking") {
         // Movimiento de boca más realista con múltiples frecuencias
-        const mouthMovement = Math.abs(Math.sin(t * 20)) * 0.2 + Math.abs(Math.sin(t * 35)) * 0.1;
+        const mouthMovement =
+          Math.abs(Math.sin(t * 20)) * 0.2 + Math.abs(Math.sin(t * 35)) * 0.1;
         const mouthWidth = 1 + Math.sin(t * 15) * 0.15;
         mouthRef.current.scale.y = 1 + mouthMovement;
         mouthRef.current.scale.x = mouthWidth;
@@ -92,23 +100,26 @@ function Robot3D({
   // Animación de ojos: parpadeo y expresividad
   useFrame((state) => {
     const t = state.clock.elapsedTime;
-    
+
     if (leftEyeRef.current && rightEyeRef.current) {
       // Parpadeo ocasional
       const blinkCycle = Math.floor(t * 0.5) % 5;
-      const blink = blinkCycle === 0 ? Math.max(0, 1 - Math.abs(Math.sin(t * 20)) * 2) : 1;
-      
+      const blink =
+        blinkCycle === 0 ? Math.max(0, 1 - Math.abs(Math.sin(t * 20)) * 2) : 1;
+
       leftEyeRef.current.scale.y = blink;
       rightEyeRef.current.scale.y = blink;
-      
+
       // Brillo más intenso al hablar
       if (isSpeaking || robotState === "talking") {
         const intensity = 0.8 + Math.sin(t * 10) * 0.3;
         leftEyeRef.current.material.emissiveIntensity = intensity;
         rightEyeRef.current.material.emissiveIntensity = intensity;
       } else {
-        leftEyeRef.current.material.emissiveIntensity += (0.8 - leftEyeRef.current.material.emissiveIntensity) * 0.1;
-        rightEyeRef.current.material.emissiveIntensity += (0.8 - rightEyeRef.current.material.emissiveIntensity) * 0.1;
+        leftEyeRef.current.material.emissiveIntensity +=
+          (0.8 - leftEyeRef.current.material.emissiveIntensity) * 0.1;
+        rightEyeRef.current.material.emissiveIntensity +=
+          (0.8 - rightEyeRef.current.material.emissiveIntensity) * 0.1;
       }
     }
   });
@@ -121,7 +132,8 @@ function Robot3D({
         const pulse = 1 + Math.sin(t * 8) * 0.4;
         antennaRef.current.material.emissiveIntensity = pulse;
       } else {
-        antennaRef.current.material.emissiveIntensity += (0.5 - antennaRef.current.material.emissiveIntensity) * 0.1;
+        antennaRef.current.material.emissiveIntensity +=
+          (0.5 - antennaRef.current.material.emissiveIntensity) * 0.1;
       }
     }
   });
@@ -129,24 +141,26 @@ function Robot3D({
   // Animación de brazos y cuerpo al hablar
   useFrame((state) => {
     const t = state.clock.elapsedTime;
-    
+
     if (leftArmRef.current && rightArmRef.current && bodyRef.current) {
       if (isSpeaking || robotState === "talking") {
         // Gestos con los brazos al hablar
         const leftGesture = Math.sin(t * 2.5) * 0.3;
         const rightGesture = Math.sin(t * 2.5 + Math.PI) * 0.3;
-        
+
         leftArmRef.current.rotation.z = leftGesture;
         rightArmRef.current.rotation.z = -rightGesture;
-        
+
         // Movimiento sutil del cuerpo
         const bodyMove = Math.sin(t * 3) * 0.03;
         bodyRef.current.rotation.y = bodyMove;
         bodyRef.current.position.y = 0.3 + Math.sin(t * 4) * 0.02;
       } else {
         // Volver a posición neutral
-        leftArmRef.current.rotation.z += (0 - leftArmRef.current.rotation.z) * 0.1;
-        rightArmRef.current.rotation.z += (0 - rightArmRef.current.rotation.z) * 0.1;
+        leftArmRef.current.rotation.z +=
+          (0 - leftArmRef.current.rotation.z) * 0.1;
+        rightArmRef.current.rotation.z +=
+          (0 - rightArmRef.current.rotation.z) * 0.1;
         bodyRef.current.rotation.y += (0 - bodyRef.current.rotation.y) * 0.1;
         bodyRef.current.position.y += (0.3 - bodyRef.current.position.y) * 0.1;
       }

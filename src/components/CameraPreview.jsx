@@ -2,47 +2,51 @@ import { useRef, useEffect, useState } from "react";
 
 function CameraPreview({ isActive, onToggle, onVideoReady, faceDetected }) {
   const videoRef = useRef(null);
-  const [stream, setStream] = useState(null);
   const [error, setError] = useState(null);
+  const streamRef = useRef(null);
 
   useEffect(() => {
-    if (isActive) {
-      startCamera();
-    } else {
-      stopCamera();
-    }
-
-    return () => stopCamera();
-  }, [isActive]);
-
-  const startCamera = async () => {
-    try {
-      const mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: { width: 320, height: 240 },
-      });
-      setStream(mediaStream);
-      if (videoRef.current) {
-        videoRef.current.srcObject = mediaStream;
-        // Notificar cuando el video esté listo
-        videoRef.current.onloadeddata = () => {
-          if (onVideoReady) {
-            onVideoReady(videoRef.current);
-          }
-        };
+    if (!isActive) {
+      // Stop camera
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((track) => track.stop());
+        streamRef.current = null;
       }
-      setError(null);
-    } catch (err) {
-      console.error("Error accessing camera:", err);
-      setError("Camera access denied");
+      return;
     }
-  };
 
-  const stopCamera = () => {
-    if (stream) {
-      stream.getTracks().forEach((track) => track.stop());
-      setStream(null);
-    }
-  };
+    let cancelled = false;
+
+    navigator.mediaDevices
+      .getUserMedia({ video: { width: 320, height: 240 } })
+      .then((mediaStream) => {
+        if (cancelled) {
+          mediaStream.getTracks().forEach((track) => track.stop());
+          return;
+        }
+        streamRef.current = mediaStream;
+        if (videoRef.current) {
+          videoRef.current.srcObject = mediaStream;
+          videoRef.current.onloadeddata = () => {
+            if (onVideoReady) onVideoReady(videoRef.current);
+          };
+        }
+        setError(null);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        console.error("Error accessing camera:", err);
+        setError("Camera access denied");
+      });
+
+    return () => {
+      cancelled = true;
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((track) => track.stop());
+        streamRef.current = null;
+      }
+    };
+  }, [isActive, onVideoReady]);
 
   return (
     <div className="absolute bottom-4 right-4 z-20">

@@ -13,6 +13,7 @@ export function useElevenLabsConversation() {
   const [mode, setMode] = useState("idle"); // 'idle', 'listening', 'speaking'
 
   const conversationRef = useRef(null);
+  const mediaStreamRef = useRef(null);
 
   // Conectar al agente y comenzar conversación
   const startConversation = useCallback(async () => {
@@ -28,7 +29,8 @@ export function useElevenLabsConversation() {
 
       // Solicitar permisos de micrófono primero
       console.log("🎤 Solicitando permisos de micrófono...");
-      await navigator.mediaDevices.getUserMedia({ audio: true });
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaStreamRef.current = stream;
 
       // Crear instancia de conversación
       console.log("📡 Iniciando sesión con ElevenLabs...");
@@ -101,6 +103,12 @@ export function useElevenLabsConversation() {
         conversationRef.current = null;
       }
 
+      // Stop all media stream tracks
+      if (mediaStreamRef.current) {
+        mediaStreamRef.current.getTracks().forEach((track) => track.stop());
+        mediaStreamRef.current = null;
+      }
+
       setIsConnected(false);
       setIsAgentSpeaking(false);
       setMode("idle");
@@ -115,7 +123,22 @@ export function useElevenLabsConversation() {
   useEffect(() => {
     return () => {
       if (conversationRef.current) {
-        conversationRef.current.endSession();
+        try {
+          conversationRef.current.endSession().catch(() => {});
+        } catch {
+          // Ignore errors during cleanup
+        }
+        conversationRef.current = null;
+      }
+      if (mediaStreamRef.current) {
+        mediaStreamRef.current.getTracks().forEach((track) => {
+          try {
+            track.stop();
+          } catch {
+            // Ignore errors during cleanup
+          }
+        });
+        mediaStreamRef.current = null;
       }
     };
   }, []);

@@ -1,5 +1,44 @@
 import { useState, useEffect } from "react";
 
+const barColorClasses = {
+  cyan: "bg-cyan-400",
+  green: "bg-green-400",
+};
+
+function StatusIndicator({ active, label }) {
+  return (
+    <div className="flex items-center gap-2">
+      <div
+        className={`w-2 h-2 rounded-full ${
+          active ? "bg-cyan-400 animate-pulse" : "bg-red-500"
+        }`}
+        style={active ? { boxShadow: "0 0 10px rgba(34, 211, 238, 0.8)" } : {}}
+      ></div>
+      <span className="text-xs font-mono">{label}</span>
+    </div>
+  );
+}
+
+function StatBar({ label, value, color = "cyan" }) {
+  return (
+    <div className="mb-2">
+      <div className="flex justify-between text-xs font-mono mb-1">
+        <span>{label}</span>
+        <span>{value}%</span>
+      </div>
+      <div className="h-1 bg-slate-800 rounded-full overflow-hidden border border-cyan-500/30">
+        <div
+          className={`h-full ${barColorClasses[color] || "bg-cyan-400"} transition-all duration-500`}
+          style={{
+            width: `${value}%`,
+            boxShadow: "0 0 10px rgba(34, 211, 238, 0.6)",
+          }}
+        ></div>
+      </div>
+    </div>
+  );
+}
+
 function SystemStats({
   robotState,
   cameraActive = false,
@@ -7,9 +46,9 @@ function SystemStats({
   isSpeaking = false,
 }) {
   const [stats, setStats] = useState({
-    cpu: 0,
-    memory: 0,
-    neuralLink: 0,
+    cpu: 45,
+    memory: 65,
+    neuralLink: 88,
   });
 
   useEffect(() => {
@@ -26,36 +65,6 @@ function SystemStats({
 
     return () => clearInterval(interval);
   }, [robotState]);
-
-  const StatusIndicator = ({ active, label }) => (
-    <div className="flex items-center gap-2">
-      <div
-        className={`w-2 h-2 rounded-full ${
-          active ? "bg-cyan-400 animate-pulse" : "bg-red-500"
-        }`}
-        style={active ? { boxShadow: "0 0 10px rgba(34, 211, 238, 0.8)" } : {}}
-      ></div>
-      <span className="text-xs font-mono">{label}</span>
-    </div>
-  );
-
-  const StatBar = ({ label, value, color = "cyan" }) => (
-    <div className="mb-2">
-      <div className="flex justify-between text-xs font-mono mb-1">
-        <span>{label}</span>
-        <span>{value}%</span>
-      </div>
-      <div className="h-1 bg-slate-800 rounded-full overflow-hidden border border-cyan-500/30">
-        <div
-          className={`h-full bg-${color}-400 transition-all duration-500`}
-          style={{
-            width: `${value}%`,
-            boxShadow: `0 0 10px rgba(34, 211, 238, 0.6)`,
-          }}
-        ></div>
-      </div>
-    </div>
-  );
 
   return (
     <div className="absolute top-4 right-4 z-20">

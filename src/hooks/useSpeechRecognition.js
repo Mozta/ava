@@ -5,9 +5,12 @@ export function useSpeechRecognition() {
   const [transcript, setTranscript] = useState("");
   const [interimTranscript, setInterimTranscript] = useState("");
   const [error, setError] = useState(null);
-  const [isSupported, setIsSupported] = useState(false);
+  const [isSupported] = useState(
+    () => "webkitSpeechRecognition" in window || "SpeechRecognition" in window
+  );
 
   const recognitionRef = useRef(null);
+  const isStartingRef = useRef(false);
 
   // Inicializar Speech Recognition
   useEffect(() => {
@@ -23,6 +26,7 @@ export function useSpeechRecognition() {
 
       recognitionRef.current.onstart = () => {
         console.log("Speech recognition started");
+        isStartingRef.current = false;
         setIsListening(true);
         setError(null);
       };
@@ -50,6 +54,7 @@ export function useSpeechRecognition() {
 
       recognitionRef.current.onerror = (event) => {
         console.error("Speech recognition error:", event.error);
+        isStartingRef.current = false;
         setError(event.error);
         setIsListening(false);
       };
@@ -59,21 +64,28 @@ export function useSpeechRecognition() {
         setIsListening(false);
       };
 
-      setIsSupported(true);
     } else {
       console.warn("Speech recognition not supported");
-      setIsSupported(false);
     }
 
     return () => {
       if (recognitionRef.current) {
-        recognitionRef.current.stop();
+        recognitionRef.current.onstart = null;
+        recognitionRef.current.onresult = null;
+        recognitionRef.current.onerror = null;
+        recognitionRef.current.onend = null;
+        try {
+          recognitionRef.current.stop();
+        } catch {
+          // Ignore errors during cleanup
+        }
       }
     };
   }, []);
 
   const startListening = useCallback(() => {
-    if (recognitionRef.current && !isListening) {
+    if (recognitionRef.current && !isListening && !isStartingRef.current) {
+      isStartingRef.current = true;
       setTranscript("");
       setInterimTranscript("");
       setError(null);

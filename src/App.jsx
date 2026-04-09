@@ -1,8 +1,8 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import "./App.css";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls, Environment } from "@react-three/drei";
-import Robot3D from "./components/Robot3D";
+import ParticleOrb from "./components/ParticleOrb";
 import { useRobotState } from "./hooks/useRobotState";
 import { useMediaPipe } from "./hooks/useMediaPipe";
 import { useVoice } from "./hooks/useVoice";
@@ -12,7 +12,7 @@ import LoadingSequence from "./components/LoadingSequence";
 import SystemStats from "./components/SystemStats";
 import CameraPreview from "./components/CameraPreview";
 import ControlPanel from "./components/ControlPanel";
-import { PREDEFINED_MESSAGES, playAudio } from "./utils/elevenLabsClient";
+import { PREDEFINED_MESSAGES } from "./utils/elevenLabsClient";
 
 function App() {
   const { robotState, changeState } = useRobotState();
@@ -42,63 +42,58 @@ function App() {
   // Hook de voz para Text-to-Speech
   const {
     speak,
-    stopSpeaking,
     isSpeaking,
-    isGenerating,
-    error: voiceError,
   } = useVoice();
 
   // Saludo automático cuando se detecta un rostro por primera vez
+  // Saludo automático cuando se detecta un rostro por primera vez
   useEffect(() => {
-    if (faceDetected && robotState === "idle" && !hasGreeted && !isSpeaking) {
-      console.log("¡Rostro detectado! Robot saludando...");
-      setHasGreeted(true);
-
-      changeState("greeting");
-
-      // Hablar el saludo
-      const greetingMessage = userName
-        ? `¡Hola ${userName}! Es un placer verte de nuevo.`
-        : PREDEFINED_MESSAGES.greeting_detected;
-
-      speak(greetingMessage)
-        .then(() => {
-          changeState("idle");
-        })
-        .catch((err) => {
-          console.error("Error en saludo:", err);
-          changeState("idle");
-        });
-    }
-
-    // Reset hasGreeted cuando no se detecta rostro por un tiempo
     if (!faceDetected) {
       const resetTimer = setTimeout(() => {
         setHasGreeted(false);
       }, 5000);
       return () => clearTimeout(resetTimer);
     }
-  }, [faceDetected, robotState, hasGreeted, isSpeaking, speak, changeState]);
+  }, [faceDetected]);
 
-  // Sincronizar estado del robot con el estado de voz y agente
+  // Ejecutar saludo cuando se detecta rostro por primera vez
+  const greetingTriggered = faceDetected && robotState === "idle" && !hasGreeted && !isSpeaking;
+
   useEffect(() => {
+    if (!greetingTriggered) return;
+
+    let cancelled = false;
+    // Use microtask to avoid synchronous setState warning in effect
+    queueMicrotask(() => {
+      if (cancelled) return;
+      setHasGreeted(true);
+      changeState("greeting");
+    });
+
+    const greetingMessage = userName
+      ? `¡Hola ${userName}! Es un placer verte de nuevo.`
+      : PREDEFINED_MESSAGES.greeting_detected;
+
+    speak(greetingMessage)
+      .then(() => { if (!cancelled) changeState("idle"); })
+      .catch(() => { if (!cancelled) changeState("idle"); });
+
+    return () => { cancelled = true; };
+  }, [greetingTriggered]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Sincronizar estado del robot — prioridad: greeting > talking > listening > idle
+  useEffect(() => {
+    // No interrumpir greeting
+    if (robotState === "greeting") return;
+
     if (isSpeaking || isAgentSpeaking) {
-      if (robotState !== "greeting") {
-        changeState("talking");
-      }
-    } else if (!isSpeaking && !isAgentSpeaking && robotState === "talking") {
-      changeState("idle");
-    }
-  }, [isSpeaking, isAgentSpeaking, robotState, changeState]);
-
-  // Sincronizar estado del robot con conversación
-  useEffect(() => {
-    if (agentConnected) {
+      changeState("talking");
+    } else if (agentConnected) {
       changeState("listening");
-    } else if (!agentConnected && robotState === "listening") {
+    } else if (robotState === "talking" || robotState === "listening") {
       changeState("idle");
     }
-  }, [agentConnected, robotState, changeState]);
+  }, [isSpeaking, isAgentSpeaking, agentConnected, robotState, changeState]);
 
   const handleInitialize = () => {
     setAppState("loading");
@@ -112,19 +107,9 @@ function App() {
     setCameraActive(!cameraActive);
   };
 
-  const handleVideoReady = (video) => {
+  const handleVideoReady = useCallback((video) => {
     setVideoElement(video);
-  };
-
-  const handleSpeak = async (text, voiceId) => {
-    try {
-      changeState("thinking");
-      await speak(text, voiceId);
-    } catch (err) {
-      console.error("Error hablando:", err);
-      changeState("idle");
-    }
-  };
+  }, []);
 
   // Toggle nombre de usuario
   const toggleUserName = () => {
@@ -248,7 +233,7 @@ function App() {
       {/* System Status Panel - Top Left */}
       <div className="absolute top-4 left-4 z-20">
         <div
-          className="bg-slate-900/90 backdrop-blur-sm border-2 border-cyan-500/50 rounded-lg p-4"
+          className="bg-slate-900/90 backdrop-blur-sm border-2 border-cyan-500/50 rounded-lg p-4 w-[220px]"
           style={{ boxShadow: "0 0 20px rgba(34, 211, 238, 0.3)" }}
         >
           {/* Header */}
@@ -333,24 +318,28 @@ function App() {
 
       {/* Canvas 3D */}
       <div className="w-full h-screen">
-        <Canvas shadows camera={{ position: [0, 1, 5], fov: 50 }}>
+        <Canvas
+          shadows
+          camera={{ position: [0, 1, 5], fov: 50 }}
+          gl={{ antialias: true, stencil: false, depth: true }}
+          dpr={[1, 2]}
+        >
           {/* Iluminación */}
           <ambientLight intensity={0.4} />
           <directionalLight
             position={[5, 5, 5]}
             intensity={1.2}
             castShadow
-            shadow-mapSize={[1024, 1024]}
+            shadow-mapSize={[512, 512]}
           />
           <pointLight position={[-5, 5, -5]} intensity={0.8} color="#22d3ee" />
-          <pointLight position={[5, 2, 5]} intensity={0.5} color="#06b6d4" />
 
-          {/* Robot 3D */}
-          <Robot3D
+          {/* Orbe de partículas */}
+          <ParticleOrb
             robotState={robotState}
             facePosition={facePosition}
             faceDetected={faceDetected}
-            isSpeaking={isSpeaking}
+            isSpeaking={isSpeaking || isAgentSpeaking}
           />
 
           {/* Suelo con efecto cyberpunk */}
@@ -383,7 +372,7 @@ function App() {
           />
 
           {/* Entorno para reflejos */}
-          <Environment preset="city" />
+          <Environment preset="night" intensity={0.3} />
         </Canvas>
       </div>
     </div>

@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
 
 /**
@@ -117,6 +117,11 @@ export function useElevenLabsAgent() {
         console.error("WebSocket error:", err);
         setError("Error de conexión con el agente");
         setIsConnected(false);
+        try {
+          ws.close();
+        } catch {
+          // Ignore close errors
+        }
       };
 
       ws.onclose = () => {
@@ -163,9 +168,40 @@ export function useElevenLabsAgent() {
       wsRef.current.close();
       wsRef.current = null;
     }
+    if (audioContextRef.current) {
+      try {
+        audioContextRef.current.close();
+      } catch {
+        // Ignore close errors
+      }
+      audioContextRef.current = null;
+    }
     audioQueueRef.current = [];
     setIsConnected(false);
     setConversationId(null);
+  }, []);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      try {
+        if (wsRef.current) {
+          wsRef.current.close();
+          wsRef.current = null;
+        }
+      } catch {
+        // Ignore errors during cleanup
+      }
+      try {
+        if (audioContextRef.current) {
+          audioContextRef.current.close();
+          audioContextRef.current = null;
+        }
+      } catch {
+        // Ignore errors during cleanup
+      }
+      audioQueueRef.current = [];
+    };
   }, []);
 
   return {

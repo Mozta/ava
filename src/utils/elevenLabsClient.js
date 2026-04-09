@@ -81,16 +81,6 @@ export const playAudio = (audioBlob) => {
   });
 };
 
-/**
- * Genera y reproduce audio directamente
- * @param {string} text - Texto a convertir y reproducir
- * @returns {Promise<void>}
- */
-export const speak = async (text) => {
-  const audioBlob = await textToSpeech(text);
-  await playAudio(audioBlob);
-};
-
 // Mensajes predefinidos
 export const PREDEFINED_MESSAGES = {
   greeting:
